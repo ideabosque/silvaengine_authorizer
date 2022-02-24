@@ -322,9 +322,10 @@ def authorize_response(event, context):
         area = api_gateway_arn_fragments[3]
         endpoint_id = api_gateway_arn_fragments[4]
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
+        setting_key = f"{stage}_{area}_{endpoint_id}"
         settings = dict(
             (item.variable, item.value)
-            for item in ConfigDataModel.query(f"{stage}_{area}_{endpoint_id}", None)
+            for item in ConfigDataModel.query(setting_key, None)
         )
         ctx = dict(
             **{"custom_context_hooks": settings.get("custom_context_hooks")}
@@ -351,7 +352,7 @@ def authorize_response(event, context):
 
         # 2. Verify user token ############################################################
         if len(settings.keys()) < 1:
-            raise Exception("Missing required configuration(s)", 500)
+            raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
 
         if _is_authorize_required(event):
             claims = _verify_token(settings, event)
