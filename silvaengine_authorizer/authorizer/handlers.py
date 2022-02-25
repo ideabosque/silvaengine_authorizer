@@ -8,7 +8,7 @@ from hashlib import md5
 from importlib.util import find_spec
 from importlib import import_module
 from silvaengine_utility import Utility, Graphql, Authorizer
-from silvaengine_resource import ResourceModel, Channel
+from silvaengine_resource import ResourceModel
 from .enumerations import SwitchStatus
 from .models import (
     ConnectionModel,
@@ -411,7 +411,6 @@ def authorize_response(event, context):
                     _execute_hooks(
                         hooks=str(authorizer.get("after_token_parsed_hooks")).strip(),
                         function_parameters={
-                            "channel": endpoint_id,
                             "claims": claims,
                             "context": ctx,
                         },
