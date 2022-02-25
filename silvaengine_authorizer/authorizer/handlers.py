@@ -409,7 +409,7 @@ def authorize_response(event, context):
             if settings.get("after_token_parsed_hooks"):
                 claims.update(
                     _execute_hooks(
-                        hooks=str(authorizer.get("after_token_parsed_hooks")).strip(),
+                        hooks=str(settings.get("after_token_parsed_hooks")).strip(),
                         function_parameters={
                             "claims": claims,
                             "context": ctx,
