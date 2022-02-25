@@ -21,12 +21,6 @@ class RoleRelationshipType(Enum):
     PRE_ASSIGN_SELLER = 4
 
 
-class UserSource(Enum):
-    SS3 = 0
-    EWP = 1
-    SOCIAL_NETWORK = 2
-
-
 class SwitchStatus(Enum):
     YES = 1
     NO = 0

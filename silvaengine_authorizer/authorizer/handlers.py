@@ -8,8 +8,8 @@ from hashlib import md5
 from importlib.util import find_spec
 from importlib import import_module
 from silvaengine_utility import Utility, Graphql, Authorizer
-from silvaengine_resource import ResourceModel
-from .enumerations import SwitchStatus, UserSource
+from silvaengine_resource import ResourceModel, Channel
+from .enumerations import SwitchStatus
 from .models import (
     ConnectionModel,
     RelationshipModel,
@@ -68,7 +68,7 @@ def _verify_token(settings, event) -> dict:
 
         for key in required_setting_keys:
             if settings.get(key) is None:
-                raise Exception(f"{key} is required", 400)
+                raise Exception(f"Missing configuration item `{key}`", 400)
 
         # keys_url = (
         #     "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json".format(
@@ -303,11 +303,6 @@ def authorize_response(event, context):
     print("Authorize response context::::::::::::::::::", context, context.__dict__)
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     try:
-        app_code = event.get("requestContext", {}).get("appCode")
-
-        if app_code is None:
-            raise Exception("Unrecognized request origin", 401)
-
         headers = dict(
             (key.strip().lower(), value)
             for key, value in event.get("headers", []).items()
@@ -320,14 +315,26 @@ def authorize_response(event, context):
         aws_account_id = method_arn_fragments[4]
         stage = api_gateway_arn_fragments[1]
         area = api_gateway_arn_fragments[3]
+        # Use `endpoint_id` to differentiate app channels
         endpoint_id = api_gateway_arn_fragments[4]
+
+        if endpoint_id is None:
+            raise Exception("Unrecognized request origin", 401)
+
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
         setting_key = f"{stage}_{area}_{endpoint_id}"
         settings = dict(
             (item.variable, item.value)
             for item in ConfigDataModel.query(setting_key, None)
         )
+
+        if len(settings.keys()) < 1:
+            raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
+        elif settings.get("user_source") is None:
+            raise Exception(f"Missing configuration item `user_source`", 400)
+
         ctx = dict(
+            {"user_source": int(settings.get("user_source"))},
             **{"custom_context_hooks": settings.get("custom_context_hooks")}
             if settings.get("custom_context_hooks")
             else {},
@@ -351,9 +358,6 @@ def authorize_response(event, context):
             return authorizer.authorize(is_allow=True, context=ctx)
 
         # 2. Verify user token ############################################################
-        if len(settings.keys()) < 1:
-            raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
-
         if _is_authorize_required(event):
             claims = _verify_token(settings, event)
 
@@ -364,9 +368,10 @@ def authorize_response(event, context):
             # @TODO: Start
             is_admin = int(str(claims.get("is_admin", SwitchStatus.NO.value)).strip())
 
+            # Use `endpoint_id` to differentiate app channels
             if (
                 bool(is_admin) == False
-                and int(str(app_code).strip()) == UserSource.SS3.value
+                and str(endpoint_id).strip() == Channel.SS3.value
             ):
                 owner_id = claims.get("seller_id")
                 teams = claims.get("teams")
