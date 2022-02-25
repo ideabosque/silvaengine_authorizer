@@ -3,7 +3,6 @@
 __author__ = "bl"
 __all__ = [
     "main",
-    "types",
     "models",
 ]
 

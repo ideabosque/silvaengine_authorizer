@@ -153,13 +153,10 @@ def _verify_token(settings, event) -> dict:
 ###############################################################################
 # Execute custom hooks by setting.
 ###############################################################################
-def _execute_custom_hooks(authorizer):
+def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None):
     try:
-        if authorizer.get("custom_context_hooks"):
-            hooks = [
-                str(hook).strip()
-                for hook in str(authorizer.get("custom_context_hooks")).split(",")
-            ]
+        if hooks:
+            hooks = [str(hook).strip() for hook in str(hooks).split(",")]
             context = {}
 
             # @TODO: exec by async
@@ -174,24 +171,42 @@ def _execute_custom_hooks(authorizer):
 
                 module_name, class_name, function_name = fragments
 
-                # 1. Load module by dynamic
-                spec = find_spec(str(module_name).strip())
+                # Load module by dynamic
+                fn = Utility.import_dynamically(
+                    module_name=module_name,
+                    function_name=function_name,
+                    class_name=class_name,
+                    constructor_parameters=constructor_parameters,
+                )
 
-                if spec is None:
-                    continue
+                context.update(
+                    fn(
+                        **(
+                            function_parameters
+                            if type(function_parameters) is dict
+                            and len(function_parameters)
+                            else {}
+                        )
+                    )
+                    if callable(fn)
+                    else {}
+                )
 
-                agent = import_module(str(module_name).strip())
+                # spec = find_spec(str(module_name).strip())
 
-                if hasattr(agent, str(class_name).strip()):
-                    agent = getattr(agent, str(class_name).strip())()
+                # if spec is None:
+                #     continue
 
-                if not hasattr(agent, str(function_name).strip()):
-                    continue
+                # agent = import_module(str(module_name).strip())
 
-                context.update(getattr(agent, str(function_name).strip())(authorizer))
+                # if hasattr(agent, str(class_name).strip()):
+                #     agent = getattr(agent, str(class_name).strip())()
 
+                # if not hasattr(agent, str(function_name).strip()):
+                #     continue
+
+                # context.update(getattr(agent, str(function_name).strip())(authorizer))
             return context
-
         return None
     except Exception as e:
         raise e
@@ -364,33 +379,44 @@ def authorize_response(event, context):
             if not claims:
                 raise Exception("Invalid token", 400)
 
-            # @TODO: Use hooks instead
-            # @TODO: Start
-            is_admin = int(str(claims.get("is_admin", SwitchStatus.NO.value)).strip())
+            # # @TODO: Use hooks instead
+            # # @TODO: Start
+            # is_admin = int(str(claims.get("is_admin", SwitchStatus.NO.value)).strip())
 
-            # Use `endpoint_id` to differentiate app channels
-            if (
-                bool(is_admin) == False
-                and str(endpoint_id).strip() == Channel.SS3.value
-            ):
-                owner_id = claims.get("seller_id")
-                teams = claims.get("teams")
+            # # Use `endpoint_id` to differentiate app channels
+            # if (
+            #     bool(is_admin) == False
+            #     and str(endpoint_id).strip() == Channel.SS3.value
+            # ):
+            #     owner_id = claims.get("seller_id")
+            #     teams = claims.get("teams")
 
-                if not owner_id or not teams:
-                    raise Exception("Invalid token", 400)
-                elif not ctx.get("seller_id") or not ctx.get("team_id"):
-                    raise Exception("Missing required parameter(s)", 400)
-                elif str(owner_id).strip() != ctx.get("seller_id"):
-                    raise Exception("Access exceeded", 403)
-                else:
-                    teams = dict(**Utility.json_loads(teams))
+            #     if not owner_id or not teams:
+            #         raise Exception("Invalid token", 400)
+            #     elif not ctx.get("seller_id") or not ctx.get("team_id"):
+            #         raise Exception("Missing required parameter(s)", 400)
+            #     elif str(owner_id).strip() != ctx.get("seller_id"):
+            #         raise Exception("Access exceeded", 403)
+            #     else:
+            #         teams = dict(**Utility.json_loads(teams))
 
-                    if teams.get(ctx.get("team_id")) is None:
-                        raise Exception("Access exceeded", 403)
+            #         if teams.get(ctx.get("team_id")) is None:
+            #             raise Exception("Access exceeded", 403)
 
-                    claims.pop("teams")
-                    claims.update(teams.get(ctx.get("team_id")))
-            # @TODO: End
+            #         claims.pop("teams")
+            #         claims.update(teams.get(ctx.get("team_id")))
+            # # @TODO: End
+            if settings.get("after_token_parsed_hooks"):
+                claims.update(
+                    _execute_hooks(
+                        hooks=str(authorizer.get("after_token_parsed_hooks")).strip(),
+                        function_parameters={
+                            "channel": endpoint_id,
+                            "claims": claims,
+                            "context": ctx,
+                        },
+                    )
+                )
 
             claims.update(ctx)
             return authorizer.authorize(is_allow=True, context=claims)
@@ -531,7 +557,12 @@ def verify_permission(event, context):
 
         # Append hooks result to context
         if authorizer.get("custom_context_hooks"):
-            additional_context.update(_execute_custom_hooks(authorizer))
+            additional_context.update(
+                _execute_hooks(
+                    hooks=str(authorizer.get("custom_context_hooks")).strip(),
+                    function_parameters={"authorizer": authorizer},
+                )
+            )
 
         event["requestContext"]["additionalContext"] = additional_context
 
