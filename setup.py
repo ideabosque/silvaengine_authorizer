@@ -13,8 +13,8 @@ setup(
     zip_safe=False,
     platforms="Linux",
     install_requires=[
-        "silvaenigne_utility",
-        "silvaenigne_resource",
+        "silvaengine_utility",
+        "silvaengine_resource",
         "graphene",
         "pynamodb",
     ],
