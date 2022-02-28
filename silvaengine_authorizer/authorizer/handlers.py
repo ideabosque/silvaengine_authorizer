@@ -5,18 +5,10 @@ from jose import jwk, jwt
 from jose.utils import base64url_decode
 from jose.constants import ALGORITHMS
 from hashlib import md5
-from importlib.util import find_spec
-from importlib import import_module
 from silvaengine_utility import Utility, Graphql, Authorizer
-from silvaengine_resource import ResourceModel
+from silvaengine_base import ConfigDataModel, ConnectionsModel
 from .enumerations import SwitchStatus
-from .models import (
-    ConnectionModel,
-    RelationshipModel,
-    RoleModel,
-    ConfigDataModel,
-)
-import uuid, json, time, urllib.request, os
+import json, time, os
 
 ###############################################################################
 # Verify ip whitelist.
@@ -34,7 +26,7 @@ def _verify_whitelist(event, context) -> bool:
         endpoint_id = str(endpoint_id).strip()
         api_key = str(api_key).strip()
         source_ip = str(source_ip).strip()
-        connnection = ConnectionModel.get(endpoint_id, api_key)
+        connnection = ConnectionsModel.get(endpoint_id, api_key)
 
         if type(connnection.whitelist) is list and len(connnection.whitelist):
             whitelist = list(set(connnection.whitelist))
@@ -155,10 +147,10 @@ def _verify_token(settings, event) -> dict:
 ###############################################################################
 def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None):
     try:
+        results = {"dict": {}, "list": []}
+
         if hooks:
             hooks = [str(hook).strip() for hook in str(hooks).split(",")]
-            context = {}
-
             # @TODO: exec by async
             for hook in hooks:
                 fragments = hook.split(":", 3)
@@ -179,7 +171,7 @@ def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None)
                     constructor_parameters=constructor_parameters,
                 )
 
-                context.update(
+                result = (
                     fn(
                         **(
                             function_parameters
@@ -189,25 +181,17 @@ def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None)
                         )
                     )
                     if callable(fn)
-                    else {}
+                    else None
                 )
 
-                # spec = find_spec(str(module_name).strip())
+                if result is None:
+                    continue
+                elif type(result) is dict:
+                    results["dict"].update(result)
+                elif type(result) is list:
+                    results["list"] = list(set(results["list"] + result))
 
-                # if spec is None:
-                #     continue
-
-                # agent = import_module(str(module_name).strip())
-
-                # if hasattr(agent, str(class_name).strip()):
-                #     agent = getattr(agent, str(class_name).strip())()
-
-                # if not hasattr(agent, str(function_name).strip()):
-                #     continue
-
-                # context.update(getattr(agent, str(function_name).strip())(authorizer))
-            return context
-        return None
+        return results
     except Exception as e:
         raise e
 
@@ -302,7 +286,7 @@ def _is_authorize_required(event):
 ###############################################################################
 # Check the current request allowed by whitelist.
 ###############################################################################
-def is_whitelisted(event):
+def _is_whitelisted(event):
     authorizer = event.get("requestContext", {}).get("authorizer", {})
 
     if type(authorizer.get("is_allowed_by_whitelist")) is bool:
@@ -312,9 +296,19 @@ def is_whitelisted(event):
 
 
 ###############################################################################
+# Get settings by setting id form config data table.
+###############################################################################
+def _get_settings(setting_id):
+    return dict(
+        (item.variable, item.value)
+        for item in ConfigDataModel.query(str(setting_id).strip(), None)
+    )
+
+
+###############################################################################
 # Permission verification response.
 ###############################################################################
-def authorize_response(event, context):
+def authorize_response(event, context, logger):
     print("Authorize response context::::::::::::::::::", context, context.__dict__)
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     try:
@@ -338,10 +332,7 @@ def authorize_response(event, context):
 
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
         setting_key = f"{stage}_{area}_{endpoint_id}"
-        settings = dict(
-            (item.variable, item.value)
-            for item in ConfigDataModel.query(setting_key, None)
-        )
+        settings = _get_settings(setting_key)
 
         if len(settings.keys()) < 1:
             raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
@@ -414,7 +405,8 @@ def authorize_response(event, context):
                             "claims": claims,
                             "context": ctx,
                         },
-                    )
+                        constructor_parameters={"logger": logger},
+                    ).get("dict", {})
                 )
 
             claims.update(ctx)
@@ -428,12 +420,12 @@ def authorize_response(event, context):
 ###############################################################################
 # Verify resource permission
 ###############################################################################
-def verify_permission(event, context):
+def verify_permission(event, context, logger):
     print("Verify permission context::::::::::::::::::", context, context.__dict__)
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     try:
-        if not _is_authorize_required(event) or is_whitelisted(event):
+        if not _is_authorize_required(event) or _is_whitelisted(event):
             return event
 
         if (
@@ -454,6 +446,7 @@ def verify_permission(event, context):
         body = event.get("body")
         function_name = event.get("pathParameters", {}).get("proxy").strip()
         content_type = headers.get("content-type", "")
+        stage = event.get("requestContext", {}).get("stage")
         area = event.get("pathParameters", {}).get("area")
         endpoint_id = event.get("pathParameters", {}).get("endpoint_id")
         is_admin = bool(int(str(authorizer.get("is_admin", 0)).strip()))
@@ -465,9 +458,15 @@ def verify_permission(event, context):
         module_name = function_config.get("config", {}).get("module_name")
         class_name = function_config.get("config", {}).get("class_name")
         message = f"Don't have the permission to access at /{area}/{endpoint_id}/{function_name}."
+        setting_key = f"{stage}_{area}_{endpoint_id}"
+        settings = _get_settings(setting_key)
 
         if not function_operations or not module_name or not class_name or not uid:
             raise Exception(message, 403)
+        elif len(settings.keys()) < 1:
+            raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
+        elif not settings.get("permission_check_hooks"):
+            raise Exception(f"Missing configuration item `permission_check_hooks`", 400)
 
         if str(content_type).strip().lower() == "application/json":
             body_json = json.loads(body)
@@ -481,28 +480,16 @@ def verify_permission(event, context):
         if type(flatten_ast) is not list or len(flatten_ast) < 1:
             raise Exception(message, 403)
 
-        # Check user's permissions
-        filter_conditions = RelationshipModel.user_id == uid
-
-        if not is_admin and group_id:
-            filter_conditions = (RelationshipModel.user_id == uid) & (
-                RelationshipModel.group_id == group_id
-            )
-
-        role_ids = list(
-            set(
-                [
-                    str(relationship.role_id).strip()
-                    for relationship in RelationshipModel.scan(filter_conditions)
-                ]
-            )
+        roles = _execute_hooks(
+            hooks=str(settings.get("permission_check_hooks")).strip(),
+            function_parameters={
+                "user_id": str(uid).strip(),
+                "channel": endpoint_id,
+                "is_admin": is_admin,
+                "group_id": group_id,
+            },
+            constructor_parameters={"logger": logger},
         )
-        print("Verify permission role ids::::::", role_ids)
-
-        if len(role_ids) < 1:
-            raise Exception(message, 403)
-
-        roles = [role for role in RoleModel.scan(RoleModel.role_id.is_in(*role_ids))]
 
         if len(roles) < 1:
             raise Exception(message, 403)
@@ -560,7 +547,8 @@ def verify_permission(event, context):
                 _execute_hooks(
                     hooks=str(authorizer.get("custom_context_hooks")).strip(),
                     function_parameters={"authorizer": authorizer},
-                )
+                    constructor_parameters={"logger": logger},
+                ).get("dict", {})
             )
 
         event["requestContext"]["additionalContext"] = additional_context
@@ -570,211 +558,5 @@ def verify_permission(event, context):
 
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", event)
         return event
-    except Exception as e:
-        raise e
-
-
-###############################################################################
-# Get a list of resource permissions for a specified user
-###############################################################################
-def get_user_permissions(user_id, is_admin=0):
-    try:
-        if not user_id:
-            return None
-
-        user_id = str(user_id).strip()
-
-        # Query user / group / role relationships
-        role_ids = list(
-            set(
-                [
-                    str(relationship.role_id).strip()
-                    for relationship in RelationshipModel.scan(
-                        RelationshipModel.user_id == user_id
-                    )
-                ]
-            )
-        )
-
-        if len(role_ids) < 1:
-            return None
-
-        rules = []
-
-        for role in RoleModel.scan(RoleModel.role_id.is_in(*role_ids)):
-            rules += role.permissions
-
-        resource_ids = list(set([str(rule.resource_id).strip() for rule in rules]))
-
-        if len(resource_ids) < 1:
-            return None
-
-        resources = {}
-
-        for resource in ResourceModel.scan(
-            ResourceModel.resource_id.is_in(*resource_ids)
-        ):
-            resources[resource.resource_id] = resource
-
-        result = {}
-
-        for rule in rules:
-            resource_id = str(rule.resource_id).strip()
-            resource = resources.get(resource_id)
-
-            if (
-                not resource_id
-                or not hasattr(resource, "function")
-                or not hasattr(resource, "operations")
-            ):
-                continue
-
-            function_name = getattr(resource, "function")
-
-            if not result.get(function_name):
-                result[function_name] = []
-
-            if type(rule.permissions):
-                for permission in rule.permissions:
-                    if (
-                        permission.operation
-                        and permission.operation_name
-                        and permission.operation != ""
-                        and permission.operation_name != ""
-                    ):
-                        result[function_name].append(
-                            str(permission.operation_name).strip().lower()
-                        )
-
-            result[function_name] = list(set(result[function_name]))
-
-        return result
-    except Exception as e:
-        raise e
-
-
-###############################################################################
-# Check user permissions.
-###############################################################################
-def check_user_permissions(
-    module_name,
-    class_name,
-    function_name,
-    operation_type,
-    operation,
-    relationship_type,
-    user_id,
-    group_id,
-):
-    try:
-        if (
-            not module_name
-            or not class_name
-            or not function_name
-            or not operation
-            or not operation_type
-            or not user_id
-            or not group_id
-            or relationship_type is None
-        ):
-            return False
-
-        get_users = Utility.import_dynamically(
-            "relation_engine",
-            "get_users_by_cognito_user_id",
-            "RelationEngine",
-            {"logger": None},
-        )
-
-        if not callable(get_users):
-            raise Exception("Module is not exists or the function is uncallable", 500)
-
-        users = get_users([str(user_id).strip()])
-
-        if len(users) < 1:
-            return False
-        elif bool(
-            int(str(users.get(str(user_id).strip(), {}).get("is_admin", 0)).strip())
-        ):
-            return True
-
-        ### 1. Check user & team relationship exists.
-        filter_condition = (
-            (RelationshipModel.user_id == str(user_id).strip())
-            & (RelationshipModel.group_id == str(group_id).strip())
-            & (RelationshipModel.type == int(relationship_type))
-        )
-        role_ids = list(
-            set(
-                [
-                    relationship.role_id
-                    for relationship in RelationshipModel.scan(
-                        filter_condition=filter_condition
-                    )
-                    if relationship.role_id
-                ]
-            )
-        )
-
-        if len(role_ids) < 1:
-            return False
-
-        #### 1.1. Get roles by role ids
-        # @TODO: len(role_ids) must less than 99
-        max_length = 90
-        permissions = []
-
-        for i in range(0, len(role_ids), max_length):
-            filter_condition = RoleModel.role_id.is_in(*role_ids[i : i + max_length])
-
-            for role in RoleModel.scan(filter_condition=filter_condition):
-                if (
-                    role.permissions
-                    and type(role.permissions) is list
-                    and len(role.permissions)
-                ):
-                    permissions += role.permissions
-
-        if len(permissions) < 1:
-            return False
-
-        ### 2. Get resources.
-        filter_condition = (
-            (ResourceModel.module_name == str(module_name).strip())
-            & (ResourceModel.class_name == str(class_name).strip())
-            & (ResourceModel.function == str(function_name).strip())
-        )
-        resource_ids = list(
-            set(
-                [
-                    str(resource.resource_id).strip()
-                    for resource in ResourceModel.scan(
-                        filter_condition=filter_condition
-                    )
-                    if resource.resource_id
-                ]
-            )
-        )
-
-        if len(resource_ids) < 1:
-            return False
-
-        operation_type = str(operation_type).strip()
-        operation = str(operation).strip()
-
-        for permission in permissions:
-            if (
-                not permission.resource_id
-                or type(permission.permissions) is not list
-                or len(permission.permissions) < 1
-            ):
-                continue
-
-            if str(permission.resource_id).strip() in resource_ids:
-                for p in permission.permissions:
-                    if p.operation == operation_type and p.operation_name == operation:
-                        return True
-
-        return False
     except Exception as e:
         raise e

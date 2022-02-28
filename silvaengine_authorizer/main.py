@@ -18,46 +18,13 @@ class Authorizer(object):
     # Authorize token
     def authorize(self, event, context):
         try:
-            return authorize_response(event, context)
+            return authorize_response(event, context, self.logger)
         except Exception as e:
             raise e
 
     # Authorize user permissions
     def verify_permission(self, event, context):
         try:
-            return verify_permission(event, context)
-        except Exception as e:
-            raise e
-
-    # Get permissions by user ID
-    def get_permissions(self, user_id, is_admin=0):
-        try:
-            return get_user_permissions(user_id, is_admin)
-        except Exception as e:
-            raise e
-
-    # Authorize user permissions
-    def check_permission(
-        self,
-        module_name,
-        class_name,
-        function_name,
-        operation_type,
-        operation,
-        relationship_type,
-        user_id,
-        group_id,
-    ):
-        try:
-            return check_user_permissions(
-                module_name,
-                class_name,
-                function_name,
-                operation_type,
-                operation,
-                relationship_type,
-                user_id,
-                group_id,
-            )
+            return verify_permission(event, context, self.logger)
         except Exception as e:
             raise e

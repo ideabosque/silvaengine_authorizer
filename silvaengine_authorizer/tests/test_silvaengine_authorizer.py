@@ -325,29 +325,6 @@ class SilvaEngineAuthorizerTest(unittest.TestCase):
         print("test_verify_permissions: ", response)
         print("#################################################")
 
-    # @unittest.skip("Check permission")
-    def test_check_user_permissions(self):
-        response = self.instance.check_permission(
-            "crm_engine",
-            "CRMEngine",
-            "crm_graphql",
-            "mutation",
-            "insertCustomer",
-            2,
-            2086,
-            204,
-        )
-
-        print("test_check_user_permissions: ", response)
-        print("#################################################")
-
-    # @unittest.skip("Get user permissions")
-    def test_get_user_permissions(self):
-        response = self.instance.get_permissions(118)
-
-        print("test_get_user_permissions: ", response)
-        print("#################################################")
-
 
 if __name__ == "__main__":
     unittest.main()

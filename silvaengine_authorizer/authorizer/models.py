@@ -2,14 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from pynamodb.models import Model
-from pynamodb.attributes import (
-    ListAttribute,
-    MapAttribute,
-    UnicodeAttribute,
-    BooleanAttribute,
-    UTCDateTimeAttribute,
-    NumberAttribute,
-)
+from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 import os
 
 __author__ = "bl"
@@ -43,68 +36,3 @@ class TraitModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     updated_by = UnicodeAttribute()
-
-
-class ResourceConstraintMap(MapAttribute):
-    operation = UnicodeAttribute()
-    operation_name = UnicodeAttribute()
-    # [] = allowed all, ["field" ...] - Exclude specifed field(s)
-    exclude = ListAttribute()
-    # field = String()
-
-
-class RoleConstraintMap(MapAttribute):
-    resource_id = UnicodeAttribute()
-    permissions = ListAttribute(of=ResourceConstraintMap)
-
-
-class RoleModel(TraitModel):
-    class Meta(TraitModel.Meta):
-        table_name = "se-roles"
-
-    role_id = UnicodeAttribute(hash_key=True)
-    # type: 0 - Normal, 1 - GWI Account Manger, 2 - GWI QC Manager, 3 - GWI Dept Manager
-    type = NumberAttribute(default=0)
-    name = UnicodeAttribute()
-    permissions = ListAttribute(of=RoleConstraintMap)
-    description = UnicodeAttribute(null=True)
-    is_admin = BooleanAttribute(default=False)
-    status = BooleanAttribute(default=True)
-
-
-class RelationshipModel(TraitModel):
-    class Meta(TraitModel.Meta):
-        table_name = "se-relationships"
-
-    relationship_id = UnicodeAttribute(hash_key=True)
-    # type: 0 - amdin, 1 - Seller, 2 - team
-    type = NumberAttribute(default=0)
-    user_id = UnicodeAttribute()
-    role_id = UnicodeAttribute()
-    group_id = UnicodeAttribute(null=True)
-    status = BooleanAttribute(default=True)
-
-
-class ConfigDataModel(BaseModel):
-    class Meta(BaseModel.Meta):
-        table_name = "se-configdata"
-
-    setting_id = UnicodeAttribute(hash_key=True)
-    variable = UnicodeAttribute(range_key=True)
-    value = UnicodeAttribute()
-
-
-class FunctionMap(MapAttribute):
-    aws_lambda_arn = UnicodeAttribute()
-    function = UnicodeAttribute()
-    setting = UnicodeAttribute()
-
-
-class ConnectionModel(BaseModel):
-    class Meta(BaseModel.Meta):
-        table_name = "se-connections"
-
-    endpoint_id = UnicodeAttribute(hash_key=True)
-    api_key = UnicodeAttribute(range_key=True, default="#####")
-    functions = ListAttribute(of=FunctionMap)
-    whitelist = ListAttribute()
