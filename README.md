@@ -1,4 +1,4 @@
-# silvaengine_auth
+# Silva Engine Authorizer
 
 ## Configurations
 
