@@ -1,12 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from .authorizer.handlers import (
-    verify_permission,
-    authorize_response,
-    get_user_permissions,
-    check_user_permissions,
-)
+from .authorizer.handlers import verify_permission, authorize_response
 
 __author__ = "bl"
 
