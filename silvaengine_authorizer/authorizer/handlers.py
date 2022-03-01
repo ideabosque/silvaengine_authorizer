@@ -494,6 +494,8 @@ def verify_permission(event, context, logger):
             constructor_parameters={"logger": logger},
         ).get("list")
 
+        print("Verify permission:::::::::::::::::", roles)
+
         if len(roles) < 1:
             raise Exception(message, 403)
 
