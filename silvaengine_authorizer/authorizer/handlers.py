@@ -337,7 +337,10 @@ def authorize_response(event, context, logger):
         if len(settings.keys()) < 1:
             raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
         elif settings.get("user_source") is None:
-            raise Exception(f"Missing configuration item `user_source`", 400)
+            raise Exception(
+                f"Configuration item `{setting_key}` is missing variable `user_source`",
+                400,
+            )
 
         ctx = dict(
             {"user_source": int(settings.get("user_source"))},
@@ -489,7 +492,7 @@ def verify_permission(event, context, logger):
                 "group_id": group_id,
             },
             constructor_parameters={"logger": logger},
-        )
+        ).get("list")
 
         if len(roles) < 1:
             raise Exception(message, 403)
