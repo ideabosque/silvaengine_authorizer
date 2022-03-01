@@ -184,12 +184,20 @@ def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None)
                     else None
                 )
 
-                if result is None:
-                    continue
-                elif type(result) is dict:
-                    results["dict"].update(result)
-                elif type(result) is list:
-                    results["list"] = list(set(results["list"] + result))
+                if callable(fn):
+                    result = fn(
+                        **(
+                            function_parameters
+                            if type(function_parameters) is dict
+                            and len(function_parameters)
+                            else {}
+                        )
+                    )
+
+                    if type(result) is dict:
+                        results["dict"].update(result)
+                    elif type(result) is list:
+                        results["list"] += result
 
         return results
     except Exception as e:
