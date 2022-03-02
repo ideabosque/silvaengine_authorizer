@@ -381,33 +381,10 @@ def authorize_response(event, context, logger):
             if not claims:
                 raise Exception("Invalid token", 400)
 
-            # # @TODO: Use hooks instead
-            # # @TODO: Start
-            # is_admin = int(str(claims.get("is_admin", SwitchStatus.NO.value)).strip())
-
-            # # Use `endpoint_id` to differentiate app channels
-            # if (
-            #     bool(is_admin) == False
-            #     and str(endpoint_id).strip() == Channel.SS3.value
-            # ):
-            #     owner_id = claims.get("seller_id")
-            #     teams = claims.get("teams")
-
-            #     if not owner_id or not teams:
-            #         raise Exception("Invalid token", 400)
-            #     elif not ctx.get("seller_id") or not ctx.get("team_id"):
-            #         raise Exception("Missing required parameter(s)", 400)
-            #     elif str(owner_id).strip() != ctx.get("seller_id"):
-            #         raise Exception("Access exceeded", 403)
-            #     else:
-            #         teams = dict(**Utility.json_loads(teams))
-
-            #         if teams.get(ctx.get("team_id")) is None:
-            #             raise Exception("Access exceeded", 403)
-
-            #         claims.pop("teams")
-            #         claims.update(teams.get(ctx.get("team_id")))
-            # # @TODO: End
+            print(
+                "#########################################################################"
+            )
+            print("Token content:::::", claims)
             if settings.get("after_token_parsed_hooks"):
                 claims.update(
                     _execute_hooks(
