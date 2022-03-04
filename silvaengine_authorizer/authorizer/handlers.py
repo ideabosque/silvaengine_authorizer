@@ -259,14 +259,14 @@ def _check_permission(roles, resource) -> bool:
 
     for role in roles:
         if (
-            not role.permissions
-            or not role.role_id
-            or type(role.permissions) is not list
-            or len(role.permissions) < 1
+            not role.get("permissions")
+            or not role.get("role_id")
+            or type(role.get("permissions")) is not list
+            or len(role.get("permissions")) < 1
         ):
             continue
 
-        permissions += role.permissions
+        permissions += role.get("permissions")
 
     rules = []
 
@@ -572,8 +572,8 @@ def verify_permission(event, context, logger):
         additional_context = {
             "roles": [
                 {
-                    "role_id": str(role.role_id).strip(),
-                    "name": str(role.name).strip(),
+                    "role_id": str(role.get("role_id")).strip(),
+                    "name": str(role.get("name")).strip(),
                 }
                 for role in roles
             ]
