@@ -288,7 +288,7 @@ def _check_permission(roles, resource) -> bool:
 
     for rule in rules:
         if (
-            not rule.gget("operation")
+            not rule.get("operation")
             or not rule.get("operation_name")
             or request_operation != str(rule.get("operation")).strip().lower()
         ):
