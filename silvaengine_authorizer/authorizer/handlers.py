@@ -202,7 +202,6 @@ def _execute_hooks(
                     elif type(result) is list:
                         results["list"] += result
                 elif endpoint_id and api_key:
-                    print("Hook:::::", endpoint_id, api_key, function_name)
                     settings, function = LambdaBase.get_function(
                         endpoint_id=endpoint_id,
                         funct=function_name,
@@ -236,10 +235,10 @@ def _execute_hooks(
 
                         if Utility.is_json_string(result):
                             result = Utility.json_loads(result, parser_number=False)
-
-                        print(
-                            "++++++++++++++++++++++++++++++++++", type(result), result
-                        )
+                        else:
+                            result = Utility.json_loads(
+                                Utility.json_dumps(result), parser_number=False
+                            )
 
                         if type(result) is dict:
                             results["dict"].update(result)
