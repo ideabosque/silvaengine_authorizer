@@ -227,6 +227,13 @@ def _execute_hooks(
 
                         print("++++++++++++++++++++++++++++++++++", type(result))
 
+                        if Utility.is_json_string(result):
+                            result = Utility.json_loads(result, parser_number=False)
+
+                        print(
+                            "++++++++++++++++++++++++++++++++++", type(result), result
+                        )
+
                         if type(result) is dict:
                             results["dict"].update(result)
                         elif type(result) is list:
