@@ -272,14 +272,14 @@ def _check_permission(roles, resource) -> bool:
 
     for permission in permissions:
         if (
-            not permission.permissions
-            or not permission.resource_id
-            or type(permission.permissions) is not list
-            or len(permission.permissions) < 1
+            not permission.get("permissions")
+            or not permission.get("resource_id")
+            or type(permission.get("permissions")) is not list
+            or len(permission.get("permissions")) < 1
         ):
             continue
 
-        rules += permission.permissions
+        rules += permission.get("permissions")
 
     m = {}
     request_operation = str(resource.get("operation", "")).strip().lower()
@@ -288,19 +288,19 @@ def _check_permission(roles, resource) -> bool:
 
     for rule in rules:
         if (
-            not rule.operation
-            or not rule.operation_name
-            or request_operation != str(rule.operation).strip().lower()
+            not rule.gget("operation")
+            or not rule.get("operation_name")
+            or request_operation != str(rule.get("operation")).strip().lower()
         ):
             continue
 
-        operation_name = str(rule.operation_name).strip().lower()
+        operation_name = str(rule.get("operation_name")).strip().lower()
 
         if not m.get(operation_name):
             m[operation_name] = []
 
-        if type(rule.exclude) is list and len(rule.exclude):
-            m[operation_name] = list(set(m[operation_name] + rule.exclude))
+        if type(rule.get("exclude")) is list and len(rule.get("exclude")):
+            m[operation_name] = list(set(m[operation_name] + rule.get("exclude")))
 
     if type(m.get(request_operation_name)) is list:
         for field in m.get(request_operation_name):
