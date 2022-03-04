@@ -225,6 +225,8 @@ def _execute_hooks(
                             invocation_type=str(function.config.funct_type).strip(),
                         )
 
+                        print("++++++++++++++++++++++++++++++++++", type(result))
+
                         if type(result) is dict:
                             results["dict"].update(result)
                         elif type(result) is list:
