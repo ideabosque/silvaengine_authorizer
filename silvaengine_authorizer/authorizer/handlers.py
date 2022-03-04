@@ -190,6 +190,13 @@ def _execute_hooks(
                         )
                     )
 
+                    if Utility.is_json_string(result):
+                        result = Utility.json_loads(result, parser_number=False)
+                    else:
+                        result = Utility.json_loads(
+                            Utility.json_dumps(result), parser_number=False
+                        )
+
                     if type(result) is dict:
                         results["dict"].update(result)
                     elif type(result) is list:
