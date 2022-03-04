@@ -6,7 +6,7 @@ from jose.utils import base64url_decode
 from jose.constants import ALGORITHMS
 from hashlib import md5
 from silvaengine_utility import Utility, Graphql, Authorizer
-from silvaengine_base import ConfigDataModel, ConnectionsModel
+from silvaengine_base import ConfigDataModel, ConnectionsModel, LambdaBase
 from .enumerations import SwitchStatus
 import json, time, os
 
@@ -145,8 +145,17 @@ def _verify_token(settings, event) -> dict:
 ###############################################################################
 # Execute custom hooks by setting.
 ###############################################################################
-def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None):
+def _execute_hooks(
+    hooks,
+    function_parameters=None,
+    constructor_parameters=None,
+    endpoint_id=None,
+    api_key=None,
+    method=None,
+    context=None,
+):
     try:
+        print("Execute hooks:::::::", hooks)
         results = {"dict": {}, "list": []}
 
         if hooks:
@@ -171,19 +180,6 @@ def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None)
                     constructor_parameters=constructor_parameters,
                 )
 
-                result = (
-                    fn(
-                        **(
-                            function_parameters
-                            if type(function_parameters) is dict
-                            and len(function_parameters)
-                            else {}
-                        )
-                    )
-                    if callable(fn)
-                    else None
-                )
-
                 if callable(fn):
                     result = fn(
                         **(
@@ -198,6 +194,37 @@ def _execute_hooks(hooks, function_parameters=None, constructor_parameters=None)
                         results["dict"].update(result)
                     elif type(result) is list:
                         results["list"] += result
+                elif endpoint_id and api_key:
+                    print("Hook:::::", endpoint_id, api_key, function_name)
+                    settings, function = LambdaBase.get_function(
+                        endpoint_id=endpoint_id,
+                        funct=function_name,
+                        api_key=api_key,
+                        method=method,
+                    )
+
+                    if function:
+                        payload = {
+                            "MODULENAME": str(function.config.module_name).strip(),
+                            "CLASSNAME": str(function.config.class_name).strip(),
+                            "funct": str(function.function).strip(),
+                            "setting": json.dumps(settings),
+                            "params": json.dumps(
+                                function_parameters
+                                if type(function_parameters) is dict
+                                and len(function_parameters)
+                                else {}
+                            ),
+                            "body": None,
+                            "context": Utility.json_dumps(context),
+                        }
+                        # invoke(cls, function_name, payload, invocation_type="Event"):
+                        response = LambdaBase.invoke(
+                            function_name=function.aws_lambda_arn,
+                            payload=payload,
+                            invocation_type=str(function.config.funct_type).strip(),
+                        )
+                        print("Call hook by invoke::::::", response)
 
         return results
     except Exception as e:
@@ -326,6 +353,8 @@ def authorize_response(event, context, logger):
         )
         principal = event.get("path", "/")
         api_id = event.get("requestContext", {}).get("apiId")
+        api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey")
+        arn = event.get("methodArn")
         method_arn_fragments = event.get("methodArn").split(":")
         api_gateway_arn_fragments = method_arn_fragments[5].split("/")
         region = method_arn_fragments[3]
@@ -394,6 +423,9 @@ def authorize_response(event, context, logger):
                             "context": ctx,
                         },
                         constructor_parameters={"logger": logger},
+                        endpoint_id=endpoint_id,
+                        api_key=api_key,
+                        context=event.get("requestContext", {}),
                     ).get("dict", {})
                 )
 
@@ -415,8 +447,7 @@ def verify_permission(event, context, logger):
     try:
         if not _is_authorize_required(event) or _is_whitelisted(event):
             return event
-
-        if (
+        elif (
             not event.get("pathParameters", {}).get("proxy")
             or not event.get("headers")
             or not event.get("body")
@@ -431,6 +462,7 @@ def verify_permission(event, context, logger):
         )
         function_config = event.get("fnConfigurations")
         authorizer = event.get("requestContext", {}).get("authorizer")
+        api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey")
         body = event.get("body")
         function_name = event.get("pathParameters", {}).get("proxy").strip()
         content_type = headers.get("content-type", "")
@@ -477,6 +509,9 @@ def verify_permission(event, context, logger):
                 "group_id": group_id,
             },
             constructor_parameters={"logger": logger},
+            endpoint_id=endpoint_id,
+            api_key=api_key,
+            context=event.get("requestContext", {}),
         ).get("list")
 
         print("Verify permission:::::::::::::::::", roles)
@@ -538,6 +573,9 @@ def verify_permission(event, context, logger):
                     hooks=str(authorizer.get("custom_context_hooks")).strip(),
                     function_parameters={"authorizer": authorizer},
                     constructor_parameters={"logger": logger},
+                    endpoint_id=endpoint_id,
+                    api_key=api_key,
+                    context=event.get("requestContext", {}),
                 ).get("dict", {})
             )
 

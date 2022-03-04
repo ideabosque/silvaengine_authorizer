@@ -14,7 +14,6 @@ setup(
     platforms="Linux",
     install_requires=[
         "silvaengine_utility",
-        "silvaengine_resource",
         "graphene",
         "pynamodb",
     ],
