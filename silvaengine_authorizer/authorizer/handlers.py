@@ -219,12 +219,16 @@ def _execute_hooks(
                             "context": Utility.json_dumps(context),
                         }
                         # invoke(cls, function_name, payload, invocation_type="Event"):
-                        response = LambdaBase.invoke(
+                        result = LambdaBase.invoke(
                             function_name=function.aws_lambda_arn,
                             payload=payload,
                             invocation_type=str(function.config.funct_type).strip(),
                         )
-                        print("Call hook by invoke::::::", response)
+
+                        if type(result) is dict:
+                            results["dict"].update(result)
+                        elif type(result) is list:
+                            results["list"] += result
 
         return results
     except Exception as e:
