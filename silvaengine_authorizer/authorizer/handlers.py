@@ -6,7 +6,7 @@ from jose.utils import base64url_decode
 from jose.constants import ALGORITHMS
 from hashlib import md5
 from silvaengine_utility import Utility, Graphql, Authorizer
-from silvaengine_base import ConfigDataModel, ConnectionsModel, LambdaBase
+from silvaengine_base import ConnectionsModel, LambdaBase
 from .enumerations import SwitchStatus
 import json, time, os
 
@@ -350,16 +350,6 @@ def _is_whitelisted(event):
 
 
 ###############################################################################
-# Get settings by setting id form config data table.
-###############################################################################
-def _get_settings(setting_id):
-    return dict(
-        (item.variable, item.value)
-        for item in ConfigDataModel.query(str(setting_id).strip(), None)
-    )
-
-
-###############################################################################
 # Permission verification response.
 ###############################################################################
 def authorize_response(event, context, logger):
@@ -388,7 +378,7 @@ def authorize_response(event, context, logger):
 
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
         setting_key = f"{stage}_{area}_{endpoint_id}"
-        settings = _get_settings(setting_key)
+        settings = LambdaBase.get_setting(setting_key)
 
         if len(settings.keys()) < 1:
             raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
@@ -498,7 +488,7 @@ def verify_permission(event, context, logger):
         class_name = function_config.get("config", {}).get("class_name")
         message = f"Don't have the permission to access at /{area}/{endpoint_id}/{function_name}."
         setting_key = f"{stage}_{area}_{endpoint_id}"
-        settings = _get_settings(setting_key)
+        settings = LambdaBase.get_setting(setting_key)
 
         if not function_operations or not module_name or not class_name or not uid:
             raise Exception(message, 403)
