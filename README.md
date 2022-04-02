@@ -21,8 +21,6 @@ after_token_parsed_hookss=module_name:class_name:function_name,module_name:class
 # 2. Settings of silvaengine_authorizer
 app_client_id=abc123456789
 app_client_secret=abc123456789
-# `custom_signin_hooks`: optional, custom callback function after login.
-custom_signin_hooks=module_name:class_name:function_name,module_name:class_name:function_name,...
 ```
 
 ### 2. Context

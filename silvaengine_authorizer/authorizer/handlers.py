@@ -450,8 +450,7 @@ def authorize_response(event, context, logger):
 # Verify resource permission
 ###############################################################################
 def verify_permission(event, context, logger):
-    print("Verify permission context::::::::::::::::::", context, context.__dict__)
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("Verify permission context::::::::::::::::::", event)
 
     try:
         if not _is_authorize_required(event) or _is_whitelisted(event):
