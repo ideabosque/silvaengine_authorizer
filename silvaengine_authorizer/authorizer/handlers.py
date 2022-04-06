@@ -353,8 +353,6 @@ def _is_whitelisted(event):
 # Permission verification response.
 ###############################################################################
 def authorize_response(event, context, logger):
-    print("Authorize response context::::::::::::::::::", context, context.__dict__)
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     try:
         headers = dict(
             (key.strip().lower(), value)
@@ -402,7 +400,11 @@ def authorize_response(event, context, logger):
         )
         # request_method = str(event.get("requestContext").get("httpMethod")).upper()
 
-        # 1. Verify source ip ############################################################
+        # 1. Skip authorize ############################################################
+        if int(settings.get("skip_authorize", 0)):
+            return authorizer.authorize(is_allow=True, context=ctx)
+
+        # 2. Verify source ip ############################################################
         if _verify_whitelist(event, context):
             ctx.update(
                 {
@@ -412,7 +414,7 @@ def authorize_response(event, context, logger):
 
             return authorizer.authorize(is_allow=True, context=ctx)
 
-        # 2. Verify user token ############################################################
+        # 3. Verify user token ############################################################
         if _is_authorize_required(event):
             claims = _verify_token(settings, event)
 
