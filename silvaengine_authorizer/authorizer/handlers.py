@@ -155,7 +155,6 @@ def _execute_hooks(
     context=None,
 ):
     try:
-        print("Execute hooks:::::::", hooks)
         results = {"dict": {}, "list": []}
 
         if hooks:
@@ -230,8 +229,6 @@ def _execute_hooks(
                             payload=payload,
                             invocation_type=str(function.config.funct_type).strip(),
                         )
-
-                        print("++++++++++++++++++++++++++++++++++", type(result))
 
                         if Utility.is_json_string(result):
                             result = Utility.json_loads(result, parser_number=False)
@@ -421,10 +418,6 @@ def authorize_response(event, context, logger):
             if not claims:
                 raise Exception("Invalid token", 400)
 
-            print(
-                "#########################################################################"
-            )
-            print("Token content:::::", claims)
             if settings.get("after_token_parsed_hooks"):
                 claims.update(
                     _execute_hooks(
@@ -452,8 +445,6 @@ def authorize_response(event, context, logger):
 # Verify resource permission
 ###############################################################################
 def verify_permission(event, context, logger):
-    print("Verify permission context::::::::::::::::::", event)
-
     try:
         if not _is_authorize_required(event) or _is_whitelisted(event):
             return event
@@ -524,12 +515,8 @@ def verify_permission(event, context, logger):
             context=event.get("requestContext", {}),
         ).get("list")
 
-        print("Verify permission:::::::::::::::::", roles)
-
         if len(roles) < 1:
             raise Exception(message, 403)
-
-        print("Verify permission roles::::::", roles, len(roles))
 
         for item in flatten_ast:
             if not item.get("operation_name"):
@@ -593,8 +580,6 @@ def verify_permission(event, context, logger):
 
         if type(context) is dict and len(context):
             event["requestContext"]["authorizer"].update(context)
-
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", event)
         return event
     except Exception as e:
         raise e
