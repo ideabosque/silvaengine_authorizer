@@ -5,11 +5,10 @@ from jose import jwk, jwt
 from jose.utils import base64url_decode
 from jose.constants import ALGORITHMS
 from hashlib import md5
-import jsonpickle
 from silvaengine_utility import Utility, Graphql, Authorizer
 from silvaengine_base import ConnectionsModel, LambdaBase
 from .enumerations import SwitchStatus
-import json, time, os
+import json, time, os, jsonpickle
 
 ###############################################################################
 # Verify ip whitelist.
@@ -197,6 +196,11 @@ def _execute_hooks(
                     #         Utility.json_dumps(result), parser_number=False
                     #     )
                     result = jsonpickle.decode(result)
+                    print(
+                        "************************** DEBUG START ******************************\r\n",
+                        result,
+                        "silvaengine authorizer 201",
+                    )
 
                     if type(result) is dict:
                         results["dict"].update(result)
@@ -238,6 +242,12 @@ def _execute_hooks(
                             result = jsonpickle.encode(result, unpicklable=False)
 
                         result = jsonpickle.decode(result)
+
+                        print(
+                            "************************** DEBUG START ******************************\r\n",
+                            result,
+                            "silvaengine authorizer 246",
+                        )
 
                         if type(result) is dict:
                             results["dict"].update(result)
