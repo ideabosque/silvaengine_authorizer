@@ -235,7 +235,7 @@ def _execute_hooks(
 
                         if not Utility.is_json_string(result):
                             # result = Utility.json_loads(result, parser_number=False)
-                            result = (jsonpickle.encode(result, unpicklable=False),)
+                            result = jsonpickle.encode(result, unpicklable=False)
 
                         result = jsonpickle.decode(result)
 
