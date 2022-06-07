@@ -156,10 +156,6 @@ def _execute_hooks(
 ):
     try:
         results = {"dict": {}, "list": []}
-        print(
-            "............................. HOOKS HOOKS HOOKS HOOKS HOOKS HOOKS HOOKS HOOKS HOOKS :",
-            hooks,
-        )
 
         if hooks:
             hooks = [str(hook).strip() for hook in str(hooks).split(",")]
@@ -200,11 +196,6 @@ def _execute_hooks(
                     #         Utility.json_dumps(result), parser_number=False
                     #     )
                     result = jsonpickle.decode(result)
-                    print(
-                        "************************** DEBUG START ******************************\r\n",
-                        result,
-                        "silvaengine authorizer 201",
-                    )
 
                     if type(result) is dict:
                         results["dict"].update(result)
@@ -247,18 +238,11 @@ def _execute_hooks(
 
                         result = jsonpickle.decode(result)
 
-                        print(
-                            "************************** DEBUG START ******************************\r\n",
-                            result,
-                            "silvaengine authorizer 246",
-                        )
-
                         if type(result) is dict:
                             results["dict"].update(result)
                         elif type(result) is list:
                             results["list"] += result
 
-        print(results, "\r\nHooks result...")
         return results
     except Exception as e:
         raise e
