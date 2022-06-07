@@ -5,6 +5,7 @@ from jose import jwk, jwt
 from jose.utils import base64url_decode
 from jose.constants import ALGORITHMS
 from hashlib import md5
+import jsonpickle
 from silvaengine_utility import Utility, Graphql, Authorizer
 from silvaengine_base import ConnectionsModel, LambdaBase
 from .enumerations import SwitchStatus
@@ -189,12 +190,13 @@ def _execute_hooks(
                         )
                     )
 
-                    if Utility.is_json_string(result):
-                        result = Utility.json_loads(result, parser_number=False)
-                    else:
-                        result = Utility.json_loads(
-                            Utility.json_dumps(result), parser_number=False
-                        )
+                    if not Utility.is_json_string(result):
+                        result = jsonpickle.encode(result, unpicklable=False)
+                    # else:
+                    #     result = Utility.json_loads(
+                    #         Utility.json_dumps(result), parser_number=False
+                    #     )
+                    result = jsonpickle.decode(result)
 
                     if type(result) is dict:
                         results["dict"].update(result)
@@ -221,7 +223,8 @@ def _execute_hooks(
                                 else {}
                             ),
                             "body": None,
-                            "context": Utility.json_dumps(context),
+                            # "context": Utility.json_dumps(context),
+                            "context": jsonpickle.encode(context, unpicklable=False),
                         }
                         # invoke(cls, function_name, payload, invocation_type="Event"):
                         result = LambdaBase.invoke(
@@ -230,12 +233,11 @@ def _execute_hooks(
                             invocation_type=str(function.config.funct_type).strip(),
                         )
 
-                        if Utility.is_json_string(result):
-                            result = Utility.json_loads(result, parser_number=False)
-                        else:
-                            result = Utility.json_loads(
-                                Utility.json_dumps(result), parser_number=False
-                            )
+                        if not Utility.is_json_string(result):
+                            # result = Utility.json_loads(result, parser_number=False)
+                            result = (jsonpickle.encode(result, unpicklable=False),)
+
+                        result = jsonpickle.decode(result)
 
                         if type(result) is dict:
                             results["dict"].update(result)
