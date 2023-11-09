@@ -524,7 +524,7 @@ def verify_permission(event, context, logger):
             constructor_parameters={"logger": logger},
             # endpoint_id=endpoint_id,
             endpoint_id=token_issuer,
-            api_key=api_key,
+            api_key=api_key if token_issuer == endpoint_id else "#####",
             context=event.get("requestContext", {}),
         ).get("list")
 
