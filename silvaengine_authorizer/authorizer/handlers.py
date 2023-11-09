@@ -202,6 +202,7 @@ def _execute_hooks(
                     elif type(result) is list:
                         results["list"] += result
                 elif endpoint_id and api_key:
+                    print(">>>>>>>>>>>>>>>>>", endpoint_id, function_name, api_key, method)
                     settings, function = LambdaBase.get_function(
                         endpoint_id=endpoint_id,
                         funct=function_name,
@@ -476,7 +477,7 @@ def verify_permission(event, context, logger):
         uid = str(authorizer.get("user_id")).strip()  # uid = authorizer.get("sub")
         # owner_id = str(authorizer.get("seller_id")).strip()
         group_id = str(authorizer.get("team_id")).strip()
-        token_issuer = str(authorizer.get("from","ss3")).strip()
+        token_issuer = str(authorizer.get("from",endpoint_id)).strip()
         # method = event["httpMethod"]
         function_operations = function_config.get("config", {}).get("operations")
         module_name = function_config.get("config", {}).get("module_name")
@@ -508,14 +509,14 @@ def verify_permission(event, context, logger):
             hooks=str(settings.get("permission_check_hooks")).strip(),
             function_parameters={
                 "user_id": str(uid).strip(),
-                "channel": endpoint_id,
-                # "channel": token_issuer,
+                # "channel": endpoint_id,
+                "channel": token_issuer,
                 "is_admin": is_admin,
                 "group_id": group_id,
             },
             constructor_parameters={"logger": logger},
-            endpoint_id=endpoint_id,
-            # endpoint_id=token_issuer,
+            # endpoint_id=endpoint_id,
+            endpoint_id=token_issuer,
             api_key=api_key,
             context=event.get("requestContext", {}),
         ).get("list")
