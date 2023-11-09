@@ -202,47 +202,49 @@ def _execute_hooks(
                     elif type(result) is list:
                         results["list"] += result
                 elif endpoint_id and api_key:
-                    print(">>>>>>>>>>>>>>>>>", endpoint_id, function_name, api_key, method)
-                    settings, function = LambdaBase.get_function(
-                        endpoint_id=endpoint_id,
-                        funct=function_name,
-                        api_key=api_key,
-                        method=method,
-                    )
-
-                    if function:
-                        payload = {
-                            "MODULENAME": str(function.config.module_name).strip(),
-                            "CLASSNAME": str(function.config.class_name).strip(),
-                            "funct": str(function.function).strip(),
-                            "setting": json.dumps(settings),
-                            "params": json.dumps(
-                                function_parameters
-                                if type(function_parameters) is dict
-                                and len(function_parameters)
-                                else {}
-                            ),
-                            "body": None,
-                            # "context": Utility.json_dumps(context),
-                            "context": jsonpickle.encode(context, unpicklable=False),
-                        }
-                        # invoke(cls, function_name, payload, invocation_type="Event"):
-                        result = LambdaBase.invoke(
-                            function_name=function.aws_lambda_arn,
-                            payload=payload,
-                            invocation_type=str(function.config.funct_type).strip(),
+                    try:
+                        settings, function = LambdaBase.get_function(
+                            endpoint_id=endpoint_id,
+                            funct=function_name,
+                            api_key=api_key,
+                            method=method,
                         )
 
-                        if not Utility.is_json_string(result):
-                            # result = Utility.json_loads(result, parser_number=False)
-                            result = jsonpickle.encode(result, unpicklable=False)
+                        if function:
+                            payload = {
+                                "MODULENAME": str(function.config.module_name).strip(),
+                                "CLASSNAME": str(function.config.class_name).strip(),
+                                "funct": str(function.function).strip(),
+                                "setting": json.dumps(settings),
+                                "params": json.dumps(
+                                    function_parameters
+                                    if type(function_parameters) is dict
+                                    and len(function_parameters)
+                                    else {}
+                                ),
+                                "body": None,
+                                # "context": Utility.json_dumps(context),
+                                "context": jsonpickle.encode(context, unpicklable=False),
+                            }
+                            # invoke(cls, function_name, payload, invocation_type="Event"):
+                            result = LambdaBase.invoke(
+                                function_name=function.aws_lambda_arn,
+                                payload=payload,
+                                invocation_type=str(function.config.funct_type).strip(),
+                            )
 
-                        result = jsonpickle.decode(result)
+                            if not Utility.is_json_string(result):
+                                # result = Utility.json_loads(result, parser_number=False)
+                                result = jsonpickle.encode(result, unpicklable=False)
 
-                        if type(result) is dict:
-                            results["dict"].update(result)
-                        elif type(result) is list:
-                            results["list"] += result
+                            result = jsonpickle.decode(result)
+
+                            if type(result) is dict:
+                                results["dict"].update(result)
+                            elif type(result) is list:
+                                results["list"] += result
+                    except:
+                        pass
 
         return results
     except Exception as e:
