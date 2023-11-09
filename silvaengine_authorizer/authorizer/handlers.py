@@ -180,6 +180,8 @@ def _execute_hooks(
                     constructor_parameters=constructor_parameters,
                 )
 
+                print(fn)
+
                 if callable(fn):
                     print("Excute callback")
                     result = fn(
