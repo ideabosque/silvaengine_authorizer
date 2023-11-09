@@ -170,7 +170,6 @@ def _execute_hooks(
                     fragments = fragments[0:3]
 
                 module_name, class_name, function_name = fragments
-                print(">>>>>>>>>>>>>>>>>>>>>>",module_name, class_name, function_name)
 
                 # Load module by dynamic
                 fn = Utility.import_dynamically(
@@ -180,10 +179,7 @@ def _execute_hooks(
                     constructor_parameters=constructor_parameters,
                 )
 
-                print(fn)
-
                 if callable(fn):
-                    print("Excute callback")
                     result = fn(
                         **(
                             function_parameters
@@ -206,7 +202,6 @@ def _execute_hooks(
                     elif type(result) is list:
                         results["list"] += result
                 elif endpoint_id and api_key:
-                    print("Excute default function::::::::::::", endpoint_id , api_key)
                     try:
                         settings, function = LambdaBase.get_function(
                             endpoint_id=endpoint_id,
