@@ -266,6 +266,7 @@ class SilvaEngineAuthorizerTest(unittest.TestCase):
                     "exp": "1629892607",
                     "iat": "1629820607",
                     "email": "jng@ingredientsonline.com",
+                    "from": "ss3"
                 },
                 "resourcePath": "/{area}/{endpoint_id}/{proxy+}",
                 "httpMethod": "POST",

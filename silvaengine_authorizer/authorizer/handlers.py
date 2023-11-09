@@ -128,14 +128,14 @@ def _verify_token(settings, event) -> dict:
         if time.time() > claims["exp"]:
             raise Exception("Token is expired", 401)
 
-        # and the Audience  (use claims['client_id'] if verifying an access token)
-        app_client_ids = [
-            str(id).strip().lower()
-            for id in settings.get("app_client_id", "").split(",")
-        ]
+        # # and the Audience  (use claims['client_id'] if verifying an access token)
+        # app_client_ids = [
+        #     str(id).strip().lower()
+        #     for id in settings.get("app_client_id", "").split(",")
+        # ]
 
-        if not app_client_ids.__contains__(claims["aud"].strip().lower()):
-            raise Exception("Token was not issued for this audience", 401)
+        # if not app_client_ids.__contains__(claims["aud"].strip().lower()):
+        #     raise Exception("Token was not issued for this audience", 401)
 
         return claims
     except Exception as e:
@@ -428,7 +428,8 @@ def authorize_response(event, context, logger):
                             "context": ctx,
                         },
                         constructor_parameters={"logger": logger},
-                        endpoint_id=endpoint_id,
+                        # endpoint_id=endpoint_id,
+                        endpoint_id=claims.get("from",endpoint_id),
                         api_key=api_key,
                         context=event.get("requestContext", {}),
                     ).get("dict", {})
@@ -473,8 +474,9 @@ def verify_permission(event, context, logger):
         endpoint_id = event.get("pathParameters", {}).get("endpoint_id")
         is_admin = bool(int(str(authorizer.get("is_admin", 0)).strip()))
         uid = str(authorizer.get("user_id")).strip()  # uid = authorizer.get("sub")
-        owner_id = str(authorizer.get("seller_id")).strip()
+        # owner_id = str(authorizer.get("seller_id")).strip()
         group_id = str(authorizer.get("team_id")).strip()
+        token_issuer = str(authorizer.get("from","ss3")).strip()
         # method = event["httpMethod"]
         function_operations = function_config.get("config", {}).get("operations")
         module_name = function_config.get("config", {}).get("module_name")
@@ -506,12 +508,14 @@ def verify_permission(event, context, logger):
             hooks=str(settings.get("permission_check_hooks")).strip(),
             function_parameters={
                 "user_id": str(uid).strip(),
-                "channel": endpoint_id,
+                # "channel": endpoint_id,
+                "channel": token_issuer,
                 "is_admin": is_admin,
                 "group_id": group_id,
             },
             constructor_parameters={"logger": logger},
-            endpoint_id=endpoint_id,
+            # endpoint_id=endpoint_id,
+            endpoint_id=token_issuer,
             api_key=api_key,
             context=event.get("requestContext", {}),
         ).get("list")
