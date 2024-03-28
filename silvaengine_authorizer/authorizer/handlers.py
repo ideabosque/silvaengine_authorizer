@@ -361,7 +361,7 @@ def authorize_response(event, context, logger):
         )
         principal = event.get("path", "/")
         api_id = event.get("requestContext", {}).get("apiId")
-        api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey","#####")
+        api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey","KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1")
         arn = event.get("methodArn")
         method_arn_fragments = event.get("methodArn").split(":")
         api_gateway_arn_fragments = method_arn_fragments[5].split("/")
