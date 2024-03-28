@@ -371,8 +371,10 @@ def authorize_response(event, context, logger):
         area = api_gateway_arn_fragments[3]
         # Use `endpoint_id` to differentiate app channels
         endpoint_id = api_gateway_arn_fragments[4]
+        print("{}:{}================================ 11111111111111111111111111111111111111111111".format(endpoint_id, api_key))
 
         if endpoint_id is None:
+            print("{}:{}================================ 2222222222222222222222222222222222222222222222".format(endpoint_id, api_key))
             raise Exception("Unrecognized request origin", 401)
 
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
@@ -380,8 +382,10 @@ def authorize_response(event, context, logger):
         settings = LambdaBase.get_setting(setting_key)
 
         if len(settings.keys()) < 1:
+            print("{}:{}================================ 33333333333333333333333333333333333333333333333".format(endpoint_id, api_key))
             raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
         elif settings.get("user_source") is None:
+            print("{}:{}================================ 44444444444444444444444444444444444444444444444".format(endpoint_id, api_key))
             raise Exception(
                 f"Configuration item `{setting_key}` is missing variable `user_source`",
                 400,
@@ -403,10 +407,12 @@ def authorize_response(event, context, logger):
 
         # 1. Skip authorize ############################################################
         if int(settings.get("skip_authorize", 0)):
+            print("{}:{}================================ 5555555555555555555555555555555555555555555555555555".format(endpoint_id, api_key))
             return authorizer.authorize(is_allow=True, context=ctx)
 
         # 2. Verify source ip ############################################################
         if _verify_whitelist(event, context):
+            print("{}:{}================================ 666666666666666666666666666666666666666666666666".format(endpoint_id, api_key))
             ctx.update(
                 {
                     "is_allowed_by_whitelist": SwitchStatus.YES.value,
@@ -417,12 +423,14 @@ def authorize_response(event, context, logger):
 
         # 3. Verify user token ############################################################
         if _is_authorize_required(event):
+            print("{}:{}================================ 7777777777777777777777777777777777777".format(endpoint_id, api_key))
             claims = _verify_token(settings, event)
 
             if not claims:
                 raise Exception("Invalid token", 400)
 
             if settings.get("after_token_parsed_hooks"):
+                print("{}:{}================================ 88888888888888888888888888888888888888888".format(endpoint_id, api_key))
                 claims.update(
                     _execute_hooks(
                         hooks=str(settings.get("after_token_parsed_hooks")).strip(),
@@ -437,12 +445,14 @@ def authorize_response(event, context, logger):
                         context=event.get("requestContext", {}),
                     ).get("dict", {})
                 )
-
+            print("{}:{}================================ 9999999999999999999999999999999999999999999999".format(endpoint_id, api_key))
             claims.update(ctx)
             return authorizer.authorize(is_allow=True, context=claims)
 
+        print("{}:{}================================ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".format(endpoint_id, api_key))
         return authorizer.authorize(is_allow=True, context=ctx)
     except Exception as e:
+        print("================================ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", e)
         raise e
 
 
