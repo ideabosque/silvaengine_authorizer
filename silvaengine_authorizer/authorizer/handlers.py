@@ -371,6 +371,10 @@ def authorize_response(event, context, logger):
         area = api_gateway_arn_fragments[3]
         # Use `endpoint_id` to differentiate app channels
         endpoint_id = api_gateway_arn_fragments[4]
+
+        if not principal.startswith("/{}".format(stage)):
+            principal = "/{}{}".format(stage, principal)
+
         print("{}:{}================================ 11111111111111111111111111111111111111111111".format(endpoint_id, api_key))
 
         if endpoint_id is None:
