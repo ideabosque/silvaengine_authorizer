@@ -376,10 +376,11 @@ def authorize_response(event, context, logger):
         if endpoint_id is None:
             print("{}:{}================================ 2222222222222222222222222222222222222222222222".format(endpoint_id, api_key))
             raise Exception("Unrecognized request origin", 401)
-
+        print("----------------------------", principal, aws_account_id, api_id, region, stage)
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
         setting_key = f"{stage}_{area}_{endpoint_id}"
         settings = LambdaBase.get_setting(setting_key)
+        print("----------------------------", setting_key)
 
         if len(settings.keys()) < 1:
             print("{}:{}================================ 33333333333333333333333333333333333333333333333".format(endpoint_id, api_key))
