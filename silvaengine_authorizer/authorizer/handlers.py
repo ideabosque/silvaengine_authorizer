@@ -93,6 +93,7 @@ def _execute_hooks(
 
         if hooks:
             hooks = [str(hook).strip() for hook in str(hooks).split(",")]
+            print(">>>>>>>>>>>>>>>>>>>>>> HOOKS TOTAL: ", len(hooks))
             # @TODO: exec by async
             for hook in hooks:
                 ts = runtime_debug(endpoint_id=endpoint_id, mark="start execute hooks")
