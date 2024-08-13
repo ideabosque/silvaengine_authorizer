@@ -439,12 +439,12 @@ def verify_permission(event, context, logger):
             if "query" in body_json:
                 body = body_json["query"]
 
-        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:extract paramenters from event".format(function_name))
+        ts=runtime_debug(endpoint_id=endpoint_id, t=ts, mark="{}:extract paramenters from event".format(function_name))
 
         # Parse the graphql request's body to AST and extract fields from the AST
         flatten_ast = Graphql.extract_flatten_ast(body)
 
-        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:extract_flatten_ast".format(function_name))
+        ts=runtime_debug(endpoint_id=endpoint_id, t=ts, mark="{}:extract_flatten_ast".format(function_name))
         if type(flatten_ast) is not list or len(flatten_ast) < 1:
             raise Exception(message, 403)
 
@@ -464,7 +464,7 @@ def verify_permission(event, context, logger):
             context=event.get("requestContext", {}),
         ).get("list")
 
-        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:permission_check_hooks".format(function_name))
+        ts=runtime_debug(endpoint_id=endpoint_id, t=ts, mark="{}:permission_check_hooks".format(function_name))
 
         if len(roles) < 1:
             raise Exception(message, 403)
@@ -502,9 +502,9 @@ def verify_permission(event, context, logger):
                 operation_name.strip().lower() not in function_operations
             ) or not _check_permission(roles, item):
                 raise Exception(message, 403)
-            ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:map_flatten_ast".format(function_name))
+            ts=runtime_debug(endpoint_id=endpoint_id, t=ts, mark="{}:map_flatten_ast".format(function_name))
 
-        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:check_permission".format(function_name))
+        ts=runtime_debug(endpoint_id=endpoint_id, t=ts, mark="{}:check_permission".format(function_name))
         # Attatch additional info to context
         additional_context = {
             "roles": [
@@ -534,7 +534,7 @@ def verify_permission(event, context, logger):
         if type(context) is dict and len(context):
             event["requestContext"]["authorizer"].update(context)
 
-        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:custom_context_hooks".format(function_name))
+        ts=runtime_debug(endpoint_id=endpoint_id, t=ts, mark="{}:custom_context_hooks".format(function_name))
         return event
     except Exception as e:
         raise e
