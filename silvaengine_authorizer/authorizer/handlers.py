@@ -1,14 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from jose import jwk, jwt
-from jose.utils import base64url_decode
-from jose.constants import ALGORITHMS
-from hashlib import md5
+from jose import jwt
 from silvaengine_utility import Utility, Graphql, Authorizer
 from silvaengine_base import ConnectionsModel, LambdaBase
 from .enumerations import SwitchStatus
-import json, time, os, jsonpickle
+from datetime import datetime
+import json, time, jsonpickle
+
+def runtime_debug(endpoint_id="", t=0, mark=""):
+    d=int(datetime.now().timestamp() * 1000) - t
+    if str(endpoint_id).strip().lower() == "ss3" and d > 0:
+        print("############# It took {} ms to execute request `{}`.".format(d, mark))
+    
+    return int(datetime.now().timestamp() * 1000)
 
 ###############################################################################
 # Verify ip whitelist.
@@ -62,80 +67,9 @@ def _verify_token(settings, event) -> dict:
             if settings.get(key) is None:
                 raise Exception(f"Missing configuration item `{key}`", 400)
 
-        # keys_url = (
-        #     "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json".format(
-        #         settings.get("region_name"), settings.get("user_pool_id")
-        #     )
-        # )
-
-        # print(keys_url)
-
-        # # instead of re-downloading the public keys every time
-        # # we download them only on cold start
-        # # https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/
-        # with urllib.request.urlopen(keys_url) as f:
-        #     response = f.read()
-
-        # print(response)
-        # keys = json.loads(response.decode("utf-8"))["keys"]
-        # print(keys)
-        # print("TOKEN:", token)
-        # # get the kid from the headers prior to verification
-        # headers = jwt.get_unverified_headers(token)
-        # kid = headers["kid"]
-        # print("KIDKIDKIDKIDKIDKIDKIDKID:", kid)
-        # # search for the kid in the downloaded public keys
-        # key_index = -1
-
-        # for i in range(len(keys)):
-        #     if kid == keys[i]["kid"]:
-        #         key_index = i
-        #         break
-
-        # if key_index == -1:
-        #     print("Public key not found in jwks.json")
-        #     raise Exception("Public key not found in jwks.json", 401)
-
-        # # construct the public key
-        # print(key_index, keys[key_index], type(keys[key_index]))
-        # algorithm = (
-        #     keys[key_index].get("alg")
-        #     if keys[key_index].get("alg")
-        #     else ALGORITHMS.RS256
-        # )
-        # keys[key_index]["alg"] = ALGORITHMS.RS256
-        # public_key = jwk.construct(keys[key_index], algorithm)
-
-        # if public_key is None:
-        #     raise Exception("Public key is invalid", 401)
-
-        # print(type(public_key), public_key)
-        # # get the last two sections of the token,
-        # # message and signature (encoded in base64)
-        # message, encoded_signature = str(token).rsplit(".", 1)
-        # # decode the signature
-        # decoded_signature = base64url_decode(encoded_signature.encode("utf-8"))
-
-        # # verify the signature
-        # if not public_key.verify(message.encode("utf8"), decoded_signature):
-        #     print("Signature verification failed")
-        #     raise Exception("Signature verification failed", 401)
-
-        # since we passed the verification, we can now safely
-        # use the unverified claims
-
         # additionally we can verify the token expiration
         if time.time() > claims["exp"]:
             raise Exception("Token is expired", 401)
-
-        # # and the Audience  (use claims['client_id'] if verifying an access token)
-        # app_client_ids = [
-        #     str(id).strip().lower()
-        #     for id in settings.get("app_client_id", "").split(",")
-        # ]
-
-        # if not app_client_ids.__contains__(claims["aud"].strip().lower()):
-        #     raise Exception("Token was not issued for this audience", 401)
 
         return claims
     except Exception as e:
@@ -375,22 +309,16 @@ def authorize_response(event, context, logger):
         if not principal.startswith("/{}".format(stage)):
             principal = "/{}{}".format(stage, principal)
 
-        print("{}:{}================================ 11111111111111111111111111111111111111111111".format(endpoint_id, api_key))
-
         if endpoint_id is None:
-            print("{}:{}================================ 2222222222222222222222222222222222222222222222".format(endpoint_id, api_key))
             raise Exception("Unrecognized request origin", 401)
-        print("----------------------------", principal, aws_account_id, api_id, region, stage)
+        
         authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
         setting_key = f"{stage}_{area}_{endpoint_id}"
         settings = LambdaBase.get_setting(setting_key)
-        print("----------------------------", setting_key)
 
         if len(settings.keys()) < 1:
-            print("{}:{}================================ 33333333333333333333333333333333333333333333333".format(endpoint_id, api_key))
             raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
         elif settings.get("user_source") is None:
-            print("{}:{}================================ 44444444444444444444444444444444444444444444444".format(endpoint_id, api_key))
             raise Exception(
                 f"Configuration item `{setting_key}` is missing variable `user_source`",
                 400,
@@ -412,12 +340,10 @@ def authorize_response(event, context, logger):
 
         # 1. Skip authorize ############################################################
         if int(settings.get("skip_authorize", 0)):
-            print("{}:{}================================ 5555555555555555555555555555555555555555555555555555".format(endpoint_id, api_key))
             return authorizer.authorize(is_allow=True, context=ctx)
 
         # 2. Verify source ip ############################################################
         if _verify_whitelist(event, context):
-            print("{}:{}================================ 666666666666666666666666666666666666666666666666".format(endpoint_id, api_key))
             ctx.update(
                 {
                     "is_allowed_by_whitelist": SwitchStatus.YES.value,
@@ -428,14 +354,12 @@ def authorize_response(event, context, logger):
 
         # 3. Verify user token ############################################################
         if _is_authorize_required(event):
-            print("{}:{}================================ 7777777777777777777777777777777777777".format(endpoint_id, api_key))
             claims = _verify_token(settings, event)
 
             if not claims:
                 raise Exception("Invalid token", 400)
 
             if settings.get("after_token_parsed_hooks"):
-                print("{}:{}================================ 88888888888888888888888888888888888888888".format(endpoint_id, api_key))
                 claims.update(
                     _execute_hooks(
                         hooks=str(settings.get("after_token_parsed_hooks")).strip(),
@@ -450,14 +374,12 @@ def authorize_response(event, context, logger):
                         context=event.get("requestContext", {}),
                     ).get("dict", {})
                 )
-            print("{}:{}================================ 9999999999999999999999999999999999999999999999".format(endpoint_id, api_key))
+            
             claims.update(ctx)
             return authorizer.authorize(is_allow=True, context=claims)
 
-        print("{}:{}================================ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".format(endpoint_id, api_key))
         return authorizer.authorize(is_allow=True, context=ctx)
     except Exception as e:
-        print("================================ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", e)
         raise e
 
 
@@ -466,6 +388,7 @@ def authorize_response(event, context, logger):
 ###############################################################################
 def verify_permission(event, context, logger):
     try:
+        ts = runtime_debug()
         if not _is_authorize_required(event) or _is_whitelisted(event):
             return event
         elif (
@@ -516,9 +439,12 @@ def verify_permission(event, context, logger):
             if "query" in body_json:
                 body = body_json["query"]
 
+        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:extract paramenters from event".format(function_name))
+
         # Parse the graphql request's body to AST and extract fields from the AST
         flatten_ast = Graphql.extract_flatten_ast(body)
 
+        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:extract_flatten_ast".format(function_name))
         if type(flatten_ast) is not list or len(flatten_ast) < 1:
             raise Exception(message, 403)
 
@@ -537,6 +463,8 @@ def verify_permission(event, context, logger):
             api_key=api_key if token_issuer == endpoint_id else "#####",
             context=event.get("requestContext", {}),
         ).get("list")
+
+        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:permission_check_hooks".format(function_name))
 
         if len(roles) < 1:
             raise Exception(message, 403)
@@ -574,7 +502,9 @@ def verify_permission(event, context, logger):
                 operation_name.strip().lower() not in function_operations
             ) or not _check_permission(roles, item):
                 raise Exception(message, 403)
+            ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:map_flatten_ast".format(function_name))
 
+        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:check_permission".format(function_name))
         # Attatch additional info to context
         additional_context = {
             "roles": [
@@ -603,6 +533,8 @@ def verify_permission(event, context, logger):
 
         if type(context) is dict and len(context):
             event["requestContext"]["authorizer"].update(context)
+
+        ts=runtime_debug(endpoint_id=endpoint_id, ts=ts, mark="{}:custom_context_hooks".format(function_name))
         return event
     except Exception as e:
         raise e
