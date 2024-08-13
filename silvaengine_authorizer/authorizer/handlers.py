@@ -95,6 +95,7 @@ def _execute_hooks(
             hooks = [str(hook).strip() for hook in str(hooks).split(",")]
             # @TODO: exec by async
             for hook in hooks:
+                ts = runtime_debug(endpoint_id=endpoint_id, mark="start execute hooks")
                 fragments = hook.split(":", 3)
 
                 if len(fragments) < 3:
@@ -113,6 +114,8 @@ def _execute_hooks(
                     constructor_parameters=constructor_parameters,
                 )
 
+                ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="import `{}` dynamically".format(hook))
+
                 if callable(fn):
                     result = fn(
                         **(
@@ -122,19 +125,18 @@ def _execute_hooks(
                             else {}
                         )
                     )
+                    ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="execute `{}` by import dynamically".format(hook))
 
                     if not Utility.is_json_string(result):
                         result = jsonpickle.encode(result, unpicklable=False)
-                    # else:
-                    #     result = Utility.json_loads(
-                    #         Utility.json_dumps(result), parser_number=False
-                    #     )
                     result = jsonpickle.decode(result)
 
                     if type(result) is dict:
                         results["dict"].update(result)
                     elif type(result) is list:
                         results["list"] += result
+
+                    ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="format `{}` result by import dynamically".format(hook))
                 elif endpoint_id and api_key:
                     try:
                         settings, function = LambdaBase.get_function(
@@ -143,6 +145,7 @@ def _execute_hooks(
                             api_key=api_key,
                             method=method,
                         )
+                        ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="get `{}` funnction configuration".format(hook))
 
                         if function:
                             payload = {
@@ -157,18 +160,18 @@ def _execute_hooks(
                                     else {}
                                 ),
                                 "body": None,
-                                # "context": Utility.json_dumps(context),
                                 "context": jsonpickle.encode(context, unpicklable=False),
                             }
-                            # invoke(cls, function_name, payload, invocation_type="Event"):
+                            ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="build payload for `{}`".format(hook))
                             result = LambdaBase.invoke(
                                 function_name=function.aws_lambda_arn,
                                 payload=payload,
                                 invocation_type=str(function.config.funct_type).strip(),
                             )
 
+                            ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="execute `{}` by invoke".format(hook))
+
                             if not Utility.is_json_string(result):
-                                # result = Utility.json_loads(result, parser_number=False)
                                 result = jsonpickle.encode(result, unpicklable=False)
 
                             result = jsonpickle.decode(result)
@@ -177,6 +180,8 @@ def _execute_hooks(
                                 results["dict"].update(result)
                             elif type(result) is list:
                                 results["list"] += result
+
+                            ts = runtime_debug(endpoint_id=endpoint_id, t=ts, mark="format `{}` result by invoke".format(hook))
                     except:
                         pass
 
