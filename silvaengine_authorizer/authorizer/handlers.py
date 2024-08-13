@@ -11,7 +11,7 @@ import json, time, jsonpickle
 def runtime_debug(endpoint_id="", t=0, mark=""):
     d=int(datetime.now().timestamp() * 1000) - t
     if str(endpoint_id).strip().lower() == "ss3" and d > 0:
-        print("############# It took {} ms to execute request `{}`.".format(d, mark))
+        print("############# It took {}ms to execute `{}` in verify permission.".format(d, mark))
     
     return int(datetime.now().timestamp() * 1000)
 
