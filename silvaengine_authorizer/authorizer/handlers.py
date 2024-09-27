@@ -3,7 +3,7 @@
 from __future__ import print_function
 from jose import jwt
 from silvaengine_utility import Utility, Graphql, Authorizer
-from silvaengine_base import ConnectionsModel, LambdaBase
+from silvaengine_base import ConnectionModel, LambdaBase
 from .enumerations import SwitchStatus
 from datetime import datetime
 import json, time, jsonpickle
@@ -31,7 +31,7 @@ def _verify_whitelist(event, context) -> bool:
         endpoint_id = str(endpoint_id).strip()
         api_key = str(api_key).strip()
         source_ip = str(source_ip).strip()
-        connnection = ConnectionsModel.get(endpoint_id, api_key)
+        connnection = ConnectionModel.get(endpoint_id, api_key)
 
         if type(connnection.whitelist) is list and len(connnection.whitelist):
             whitelist = list(set(connnection.whitelist))
