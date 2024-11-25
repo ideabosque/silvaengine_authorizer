@@ -325,7 +325,13 @@ def authorize_websocket(event, context, logger):
         elif time.time() > claims["exp"]:
             raise Exception("Token is expired", 401)
 
-        return authorizer.authorize(is_allow=True, context=claims)
+        policy = authorizer.authorize(is_allow=True, context=claims)
+
+        for statement in policy.get('policyDocument',{}).get('Statement', []):
+            for resource in statement.get('Resource', []):
+                if str(resource).endswith('/beta/*/*'):
+                    resource = event.get("methodArn")
+
     except Exception as e:
         raise e
 
