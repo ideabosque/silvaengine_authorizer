@@ -296,17 +296,17 @@ def _is_whitelisted(event):
 def authorize_websocket(event, context, logger):
     try:
         # "methodArn": "arn:aws:execute-api:us-east-1:785238679596:njr44a8w10/beta/$connect",
-        principal = event.get("path", "/")
+        # principal = event.get("path", "/")
         api_id = event.get("requestContext", {}).get("apiId")
         stage = event.get("requestContext", {}).get("stage")
         method_arn_fragments = event.get("methodArn").split(":")
         region = method_arn_fragments[3]
         aws_account_id = method_arn_fragments[4]
         
-        if not principal.startswith("/{}".format(stage)):
-            principal = "/{}{}".format(stage, principal)
+        # if not principal.startswith("/{}".format(stage)):
+        #     principal = "/{}{}".format(stage, principal)
         
-        authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
+        authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
         headers = dict(
             (key.strip().lower(), value)
             for key, value in event.get("headers", {}).items()
