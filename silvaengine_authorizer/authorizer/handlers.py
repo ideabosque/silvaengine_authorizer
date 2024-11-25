@@ -332,6 +332,7 @@ def authorize_websocket(event, context, logger):
                 if str(resource).endswith('/beta/*/*'):
                     resource = event.get("methodArn")
 
+        return policy
     except Exception as e:
         raise e
 
