@@ -300,18 +300,24 @@ def authorize_websocket(event, context, logger):
         api_id = event.get("requestContext", {}).get("apiId")
         stage = event.get("requestContext", {}).get("stage")
         claims = event.get("requestContext", {}).get("authorizer", {})
-        arn = claims.get('arn')
+        arn = event.get("methodArn")
+
+        if not arn:
+            arn = claims = event.get("requestContext", {}).get("authorizer", {}).get('arn')
+
+            if not arn:
+                raise Exception("Unrecognized request origin", 401)
+
+        method_arn_fragments = arn.split(":")
+        region = method_arn_fragments[3]
+        aws_account_id = method_arn_fragments[4]
+        
+        # if not principal.startswith("/{}".format(stage)):
+        #     principal = "/{}{}".format(stage, principal)
+        
+        authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
 
         if event.get("methodArn") is not None:
-            arn = event.get("methodArn")
-            method_arn_fragments = event.get("methodArn").split(":")
-            region = method_arn_fragments[3]
-            aws_account_id = method_arn_fragments[4]
-            
-            # if not principal.startswith("/{}".format(stage)):
-            #     principal = "/{}{}".format(stage, principal)
-            
-            authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
             headers = dict(
                 (key.strip().lower(), value)
                 for key, value in event.get("headers", {}).items()
@@ -325,10 +331,15 @@ def authorize_websocket(event, context, logger):
                     raise Exception(f"Token is required", 400)
 
             claims = jwt.get_unverified_claims(str(token).strip())
+
             if not claims:
                 raise Exception("Invalid token", 400)
             elif time.time() > claims["exp"]:
                 raise Exception("Token is expired", 401)
+            
+            claims.update({
+                'arn': arn,
+            })
 
         policy = authorizer.authorize(is_allow=True, context=claims)
 
