@@ -327,10 +327,14 @@ def authorize_websocket(event, context, logger):
 
         policy = authorizer.authorize(is_allow=True, context=claims)
 
-        for statement in policy.get('policyDocument',{}).get('Statement', []):
-            for resource in statement.get('Resource', []):
+        for idx, statement in enumerate(policy.get('policyDocument',{}).get('Statement', [])):
+            print('---------------------------');
+            for i, resource in enumerate(statement.get('Resource', [])):
+                print("###########################")
                 if str(resource).endswith('/beta/*/*'):
+                    print('**********************')
                     resource = event.get("methodArn")
+                    policy['policyDocument']['Statement'][idx]['Resource'][i] = event.get("methodArn")
 
         return policy
     except Exception as e:
