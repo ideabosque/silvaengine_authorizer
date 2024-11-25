@@ -299,31 +299,36 @@ def authorize_websocket(event, context, logger):
         # principal = event.get("path", "/")
         api_id = event.get("requestContext", {}).get("apiId")
         stage = event.get("requestContext", {}).get("stage")
-        method_arn_fragments = event.get("methodArn").split(":")
-        region = method_arn_fragments[3]
-        aws_account_id = method_arn_fragments[4]
-        
-        # if not principal.startswith("/{}".format(stage)):
-        #     principal = "/{}{}".format(stage, principal)
-        
-        authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
-        headers = dict(
-            (key.strip().lower(), value)
-            for key, value in event.get("headers", {}).items()
-        )
-        token = headers.get("authorization")
+        claims = event.get("requestContext", {}).get("authorizer", {})
+        arn = claims.get('arn')
 
-        if not token:
-            token = event.get("queryStringParameters",{}).get("authorization")
+        if event.get("methodArn") is not None:
+            arn = event.get("methodArn")
+            method_arn_fragments = event.get("methodArn").split(":")
+            region = method_arn_fragments[3]
+            aws_account_id = method_arn_fragments[4]
+            
+            # if not principal.startswith("/{}".format(stage)):
+            #     principal = "/{}{}".format(stage, principal)
+            
+            authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
+            headers = dict(
+                (key.strip().lower(), value)
+                for key, value in event.get("headers", {}).items()
+            )
+            token = headers.get("authorization")
 
             if not token:
-                raise Exception(f"Token is required", 400)
+                token = event.get("queryStringParameters",{}).get("authorization")
 
-        claims = jwt.get_unverified_claims(str(token).strip())
-        if not claims:
-            raise Exception("Invalid token", 400)
-        elif time.time() > claims["exp"]:
-            raise Exception("Token is expired", 401)
+                if not token:
+                    raise Exception(f"Token is required", 400)
+
+            claims = jwt.get_unverified_claims(str(token).strip())
+            if not claims:
+                raise Exception("Invalid token", 400)
+            elif time.time() > claims["exp"]:
+                raise Exception("Token is expired", 401)
 
         policy = authorizer.authorize(is_allow=True, context=claims)
 
@@ -333,8 +338,8 @@ def authorize_websocket(event, context, logger):
                 print("###########################")
                 if str(resource).endswith('/beta/*/*'):
                     print('**********************')
-                    resource = event.get("methodArn")
-                    policy['policyDocument']['Statement'][idx]['Resource'][i] = event.get("methodArn")
+                    # resource = event.get("methodArn")
+                    policy['policyDocument']['Statement'][idx]['Resource'][i] = arn
 
         return policy
     except Exception as e:
