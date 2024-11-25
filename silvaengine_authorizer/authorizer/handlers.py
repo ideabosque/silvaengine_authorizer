@@ -310,11 +310,7 @@ def authorize_websocket(event, context, logger):
 
         method_arn_fragments = arn.split(":")
         region = method_arn_fragments[3]
-        aws_account_id = method_arn_fragments[4]
-        
-        # if not principal.startswith("/{}".format(stage)):
-        #     principal = "/{}{}".format(stage, principal)
-        
+        aws_account_id = method_arn_fragments[4]        
         authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
 
         if event.get("methodArn") is not None:
@@ -344,12 +340,8 @@ def authorize_websocket(event, context, logger):
         policy = authorizer.authorize(is_allow=True, context=claims)
 
         for idx, statement in enumerate(policy.get('policyDocument',{}).get('Statement', [])):
-            print('---------------------------');
             for i, resource in enumerate(statement.get('Resource', [])):
-                print("###########################")
                 if str(resource).endswith('/beta/*/*'):
-                    print('**********************')
-                    # resource = event.get("methodArn")
                     policy['policyDocument']['Statement'][idx]['Resource'][i] = arn
 
         return policy
