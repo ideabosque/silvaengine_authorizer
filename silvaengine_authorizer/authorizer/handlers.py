@@ -291,6 +291,43 @@ def _is_whitelisted(event):
 
 
 ###############################################################################
+# Permission verification websocket.
+###############################################################################
+def authorize_websocket(event, context, logger):
+    try:
+        # "methodArn": "arn:aws:execute-api:us-east-1:785238679596:njr44a8w10/beta/$connect",
+        principal = event.get("path", "/")
+        api_id = event.get("requestContext", {}).get("apiId")
+        stage = event.get("requestContext", {}).get("stage")
+        method_arn_fragments = event.get("methodArn").split(":")
+        region = method_arn_fragments[3]
+        aws_account_id = method_arn_fragments[4]
+        
+        if not principal.startswith("/{}".format(stage)):
+            principal = "/{}{}".format(stage, principal)
+        
+        authorizer = Authorizer(principal, aws_account_id, api_id, region, stage)
+        headers = dict(
+            (key.strip().lower(), value)
+            for key, value in event.get("headers", {}).items()
+        )
+        token = headers.get("authorization")
+
+        if not token:
+            raise Exception(f"Token is required", 400)
+
+        claims = jwt.get_unverified_claims(str(token).strip())
+        if not claims:
+            raise Exception("Invalid token", 400)
+        elif time.time() > claims["exp"]:
+            raise Exception("Token is expired", 401)
+
+        return authorizer.authorize(is_allow=True, context=claims)
+    except Exception as e:
+        raise e
+
+
+###############################################################################
 # Permission verification response.
 ###############################################################################
 def authorize_response(event, context, logger):
