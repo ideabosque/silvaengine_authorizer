@@ -314,7 +314,10 @@ def authorize_websocket(event, context, logger):
         token = headers.get("authorization")
 
         if not token:
-            raise Exception(f"Token is required", 400)
+            token = event.get("queryStringParameters",{}).get("authorization")
+
+            if not token:
+                raise Exception(f"Token is required", 400)
 
         claims = jwt.get_unverified_claims(str(token).strip())
         if not claims:
