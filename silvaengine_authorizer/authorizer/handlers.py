@@ -310,10 +310,23 @@ def authorize_websocket(event, context, logger):
 
         method_arn_fragments = arn.split(":")
         region = method_arn_fragments[3]
-        aws_account_id = method_arn_fragments[4]        
+        aws_account_id = method_arn_fragments[4]
+        setting_key = [stage]
+
+        if event.get("queryStringParameters",{}).get("area") is not None:
+            setting_key.append(event.get("queryStringParameters",{}).get("area"))
+
+        if event.get("queryStringParameters",{}).get("endpointId") is not None:
+            setting_key.append(event.get("queryStringParameters",{}).get("endpointId"))
+
+        settings = LambdaBase.get_setting("_".join(setting_key))
+
+        if len(settings.keys()) < 1:
+            raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
+        
         authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
 
-        if event.get("methodArn") is not None:
+        if event.get("methodArn") is not None and settings.get("enabled_authorization", False):
             headers = dict(
                 (key.strip().lower(), value)
                 for key, value in event.get("headers", {}).items()
