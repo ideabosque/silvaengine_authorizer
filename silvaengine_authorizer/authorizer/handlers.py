@@ -333,6 +333,21 @@ def authorize_websocket(event, context, logger):
             elif time.time() > claims["exp"]:
                 raise Exception("Token is expired", 401)
             
+            setting_key_fragments = [stage]
+
+            if event.get("queryStringParameters",{}).get("area") is not None:
+                setting_key_fragments.append(str(event.get("queryStringParameters",{}).get("area")).strip())
+            
+            if event.get("queryStringParameters",{}).get("endpointId") is not None:
+                setting_key_fragments.append(str(event.get("queryStringParameters",{}).get("endpointId")).strip())
+
+            settings = LambdaBase.get_setting("_".join(setting_key_fragments))
+            client_id = claims["aud"] if claims["aud"] is not None else claims["client_id"]
+
+            if settings is not None and client_id is not None and len(settings.get("allowed_client_ids",[])) > 0 and client_id not in settings.get("allowed_client_ids",[]):
+                raise Exception("Invalid token", 401) 
+
+            
             claims.update({
                 'arn': arn,
             })
