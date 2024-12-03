@@ -314,19 +314,23 @@ def authorize_websocket(event, context, logger):
         setting_key = [stage]
 
         if event.get("queryStringParameters",{}).get("area") is not None:
-            setting_key.append(event.get("queryStringParameters",{}).get("area"))
+            setting_key.append(str(event.get("queryStringParameters",{}).get("area")).strip())
 
         if event.get("queryStringParameters",{}).get("endpointId") is not None:
-            setting_key.append(event.get("queryStringParameters",{}).get("endpointId"))
+            setting_key.append(str(event.get("queryStringParameters",{}).get("endpointId")).strip())
 
         settings = LambdaBase.get_setting("_".join(setting_key))
+        enabled_authorization = False
+        print(">>>>>>>>>>>>>>>>>","_".join(setting_key)), 
 
-        if len(settings.keys()) < 1:
-            raise Exception(f"Missing required configuration(s) `{setting_key}`", 500)
+        if settings is not None:
+            enabled_authorization = settings.get("enabled_authorization", False)
+
+        print(">>>>>>>>>>>>>>>>>", enabled_authorization), 
         
         authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
 
-        if event.get("methodArn") is not None and settings.get("enabled_authorization", False):
+        if event.get("methodArn") is not None and enabled_authorization:
             headers = dict(
                 (key.strip().lower(), value)
                 for key, value in event.get("headers", {}).items()
