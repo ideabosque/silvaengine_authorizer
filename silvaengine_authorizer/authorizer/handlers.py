@@ -310,9 +310,7 @@ def authorize_websocket(event, context, logger):
 
         method_arn_fragments = arn.split(":")
         region = method_arn_fragments[3]
-        aws_account_id = method_arn_fragments[4]
-
-        
+        aws_account_id = method_arn_fragments[4]        
         authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
 
         if event.get("methodArn") is not None:
