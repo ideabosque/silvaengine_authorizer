@@ -300,17 +300,6 @@ def authorize_websocket(event, context, logger):
         api_id = event.get("requestContext", {}).get("apiId")
         stage = event.get("requestContext", {}).get("stage")
         claims = event.get("requestContext", {}).get("authorizer", {})
-        arn = event.get("methodArn")
-
-        if not arn:
-            arn = claims = event.get("requestContext", {}).get("authorizer", {}).get('arn')
-
-            if not arn:
-                raise Exception("Unrecognized request origin", 401)
-
-        method_arn_fragments = arn.split(":")
-        region = method_arn_fragments[3]
-        aws_account_id = method_arn_fragments[4]
         setting_key = [stage]
 
         if event.get("queryStringParameters",{}).get("area") is not None:
@@ -321,47 +310,59 @@ def authorize_websocket(event, context, logger):
 
         settings = LambdaBase.get_setting("_".join(setting_key))
         enabled_authorization = False
-        print(">>>>>>>>>>>>>>>>>","_".join(setting_key)), 
 
         if settings is not None:
             enabled_authorization = settings.get("enabled_authorization", False)
-
-        print(">>>>>>>>>>>>>>>>>", enabled_authorization), 
         
-        authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
+        if enabled_authorization:
+            arn = event.get("methodArn")
 
-        if event.get("methodArn") is not None and enabled_authorization:
-            headers = dict(
-                (key.strip().lower(), value)
-                for key, value in event.get("headers", {}).items()
-            )
-            token = headers.get("authorization")
+            if not arn:
+                arn = claims = event.get("requestContext", {}).get("authorizer", {}).get('arn')
 
-            if not token:
-                token = event.get("queryStringParameters",{}).get("authorization")
+                if not arn:
+                    raise Exception("Unrecognized request origin", 401)
+
+            method_arn_fragments = arn.split(":")
+            region = method_arn_fragments[3]
+            aws_account_id = method_arn_fragments[4]
+
+            
+            authorizer = Authorizer(event.get("requestContext", {}).get("connectionId"), aws_account_id, api_id, region, stage)
+
+            if event.get("methodArn") is not None:
+                headers = dict(
+                    (key.strip().lower(), value)
+                    for key, value in event.get("headers", {}).items()
+                )
+                token = headers.get("authorization")
 
                 if not token:
-                    raise Exception(f"Token is required", 400)
+                    token = event.get("queryStringParameters",{}).get("authorization")
 
-            claims = jwt.get_unverified_claims(str(token).strip())
+                    if not token:
+                        raise Exception(f"Token is required", 400)
 
-            if not claims:
-                raise Exception("Invalid token", 400)
-            elif time.time() > claims["exp"]:
-                raise Exception("Token is expired", 401)
-            
-            claims.update({
-                'arn': arn,
-            })
+                claims = jwt.get_unverified_claims(str(token).strip())
 
-        policy = authorizer.authorize(is_allow=True, context=claims)
+                if not claims:
+                    raise Exception("Invalid token", 400)
+                elif time.time() > claims["exp"]:
+                    raise Exception("Token is expired", 401)
+                
+                claims.update({
+                    'arn': arn,
+                })
 
-        for idx, statement in enumerate(policy.get('policyDocument',{}).get('Statement', [])):
-            for i, resource in enumerate(statement.get('Resource', [])):
-                if str(resource).endswith('/beta/*/*'):
-                    policy['policyDocument']['Statement'][idx]['Resource'][i] = arn
+            policy = authorizer.authorize(is_allow=True, context=claims)
 
-        return policy
+            for idx, statement in enumerate(policy.get('policyDocument',{}).get('Statement', [])):
+                for i, resource in enumerate(statement.get('Resource', [])):
+                    if str(resource).endswith('/beta/*/*'):
+                        policy['policyDocument']['Statement'][idx]['Resource'][i] = arn
+
+            return policy
+        return {"statusCode": 200, "body": "Disconnection successful"}
     except Exception as e:
         raise e
 
